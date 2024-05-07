@@ -49,3 +49,11 @@ Run below command to check the certificate details inside the container:
 ```sh
 openssl x509 -text -in /root/.acme.sh/$DOMAIN/fullchain.cer
 ```
+
+## CI/CD
+
+Github Actions is currently used for the CI/CD.
+
+The CI/CD workflows are defined in the `.github/workflows` directory.
+
+* ci-docker.yml: Build and push the docker image to Docker Hub. It can be triggered by the Github release.

@@ -12,7 +12,8 @@
 #   - 8388: The port for the shadowsocks service.
 #
 # Build:
-#   docker build -t alexzhangs/shadowsocks-libev-v2ray .  
+#   docker build -t alexzhangs/shadowsocks-libev-v2ray .
+#   docker build --platform linux/amd64 -t alexzhangs/shadowsocks-libev-v2ray .
 #
 # Run:
 #
