@@ -87,21 +87,31 @@ RUN <<EOF
     ARCH=$(uname -m)
     case ${ARCH} in
         x86_64)
-            # GO_BINARY_URL="https://go.dev/dl/go1.16.10.linux-amd64.tar.gz" ;;
-            GO_BINARY_URL="https://dl.google.com/go/go1.16.10.linux-amd64.tar.gz" ;;
+            GO_BINARY_URL="https://dl.google.com/go/go1.16.10.linux-amd64.tar.gz"
+            ;;
         aarch64)
-            # GO_BINARY_URL="https://go.dev/dl/go1.16.10.linux-arm64.tar.gz" ;;
-            GO_BINARY_URL="https://dl.google.com/go/go1.16.10.linux-arm64.tar.gz" ;;
+            GO_BINARY_URL="https://dl.google.com/go/go1.16.10.linux-arm64.tar.gz"
+            ;;
         *)
-            echo "${ARCH}: Unsupported architecture"; exit 1 ;;
+            echo "${ARCH}: Unsupported architecture"
+            exit 1
+            ;;
     esac
     curl -LO ${GO_BINARY_URL}
-    tar -C /usr/local -xvzf go1.16.10.linux-*.tar.gz
-EOF
+    tar -C /usr/local -xzf go1.16.10.linux-*.tar.gz
 
-# Workaround to fix error: /usr/local/go/bin/go: not found
-# see: file $(which go)
-RUN ln -s /lib/ld-musl-aarch64.so.1 /lib/ld-linux-aarch64.so.1
+    # Workaround to fix error: go: not found
+    # Use `file $(which go)` to debug the missing library
+    case ${ARCH} in
+        x86_64)
+            mkdir /lib64
+            ln -s /lib/ld-musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
+            ;;
+        aarch64)
+            ln -s /lib/ld-musl-aarch64.so.1 /lib/ld-linux-aarch64.so.1
+            ;;
+    esac
+EOF
 
 # Set the PATH for Go
 ENV PATH=$PATH:/usr/local/go/bin
