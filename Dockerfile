@@ -82,6 +82,9 @@ RUN curl -sL https://get.acme.sh | sh
 # Set the PATH for acme.sh
 ENV PATH=$PATH:/root/.acme.sh
 
+# Verify that acme.sh is installed
+RUN acme.sh --version
+
 # Install Go 1.16 (v2ray-plugin requires Go 1.16)
 RUN <<EOF
     set -ex

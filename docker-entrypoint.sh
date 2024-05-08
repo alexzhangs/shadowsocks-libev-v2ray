@@ -69,12 +69,20 @@ function issue-tls-cert () {
         exit 255
     fi
 
+    declare done_file=~/.issue-tls-cert-done
+
+    if [[ -f $done_file ]]; then
+        echo "INFO: TLS certificate has been issued for the domain $DOMAIN."
+        return
+    fi
+
     acme.sh --version
 
     # Register an account with acme.sh
     acme.sh --register-account -m "acme@$DOMAIN"
 
     declare -a acme_common_opts=(--force-color --domain "$DOMAIN")
+    declare -a acme_issue_opts=("${acme_common_opts[@]}" --renew-hook reboot --dns)
 
     # Setup DNS hook if DNS is set
     if [[ -n $DNS ]]; then
@@ -94,10 +102,10 @@ function issue-tls-cert () {
         done
 
         # Issue a certificate for the domain with acme.sh, using DNS hook
-        acme.sh --issue "${acme_common_opts[@]}" --dns "$DNS"
+        acme.sh --issue "${acme_issue_opts[@]}" "$DNS"
     else
         # Issue a certificate for the domain with acme.sh, using manual mode, ignoring the non-zero exit code
-        acme.sh --issue "${acme_common_opts[@]}" --dns --yes-I-know-dns-manual-mode-enough-go-ahead-please || :
+        acme.sh --issue "${acme_issue_opts[@]}" --yes-I-know-dns-manual-mode-enough-go-ahead-please || :
 
         while true; do
             echo "Sleeping for 60 seconds to allow the DNS record to propagate ..."
@@ -112,6 +120,9 @@ function issue-tls-cert () {
 
     # Create a symbolic link for the certificate directory, v2ray-plugin seaches only the path without the _ecc suffix
     ln -s "${DOMAIN}_ecc" "/root/.acme.sh/${DOMAIN}"
+
+    # Create the cert done file
+    touch "$done_file"
 }
 
 function main () {
