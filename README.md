@@ -38,11 +38,29 @@ More usage examples can be found in the [Dockerfile](Dockerfile) and the [docker
 
 ## Certificates Renewal
 
-The docker file is not configured to renew certificates automatically. Since the renewal process requires the ss-server or ss-manager to restart to be aware of the new certificates, thus the more appropriate way to renew certificates is to restart the container.
+acme.sh always sets up a daily cron job to check and renew the certificates automatically.
 
-A new certificate will be issued if the container is restarted. To automate the renewal process, you can use a cron job to restart the container periodically.
+```sh
+# crontab -l | grep acme.sh
+10 21 * * * "/root/.acme.sh"/acme.sh --cron --home "/root/.acme.sh" > /dev/null
+```
 
-For now, acme.sh certificates have a maximum 90-day validity period.
+For now, acme.sh certificates have a maximum 90-day validity period, and will be renewed automatically on the 60th day.
+
+This project sets up a renew hook command `reboot` at the certificate issue time, as long as the `ss-server` and `ss-manager` commands handle the `SIGINT` signal properly, and combined with the `--restart=always` option, the container will be restarted automatically after the certificate renewal.
+
+As a result, the container handles the certificate renewal automatically without interfering with the host.
+
+However, if you are running the container with the `ss-manager` command, after the container is restarted, all the ports created by the multi-user API will be lost, and you are responsible for re-creating them. The project [shadowsocks-manager](https://github.com/alexzhangs/shadowsocks-manager) uses heartbeat to monitor the `ss-manager` service and re-create the ports automatically.
+
+
+## Certificate Management
+
+List all the certificates inside the container:
+
+```sh
+acme.sh --list
+```
 
 Run below command to check the certificate details inside the container:
 
