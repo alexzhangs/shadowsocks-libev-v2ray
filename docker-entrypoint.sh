@@ -53,6 +53,19 @@
 #?     For the required <name> and <value>, please refer to:
 #?     * https://github.com/acmesh-official/acme.sh/wiki/dnsapi
 #?
+#? File:
+#?   The following files are created by this script:
+#?
+#?   - ~/.acme-account-done
+#?
+#?     This file is created after the account registration with acme.sh.
+#?     The account registration is skipped if this file exists.
+#?
+#?   - ~/.acme-cert-done
+#?
+#?     This file is created after the certificate is issued for the domain with acme.sh.
+#?     The certificate issuance is skipped if this file exists.
+#?
 
 # exit on any error
 set -e -o pipefail
@@ -69,17 +82,21 @@ function issue-tls-cert () {
         exit 255
     fi
 
-    declare done_file=~/.issue-tls-cert-done
+    declare acme_account_done_file=~/.acme-account-done
+    declare acme_cert_done_file=~/.acme-cert-done
 
-    if [[ -f $done_file ]]; then
+    if [[ -f $acme_cert_done_file ]]; then
         echo "INFO: TLS certificate has been issued for the domain $DOMAIN."
         return
     fi
 
     acme.sh --version
 
-    # Register an account with acme.sh
-    acme.sh --register-account -m "acme@$DOMAIN"
+    # Register an account with acme.sh if not done
+    if [[ ! -f $acme_account_done_file ]]; then
+        acme.sh --register-account -m "acme@$DOMAIN"
+        touch "$acme_account_done_file"
+    fi
 
     declare -a acme_common_opts=(--force-color --domain "$DOMAIN")
     declare -a acme_issue_opts=("${acme_common_opts[@]}" --renew-hook reboot --dns)
@@ -122,7 +139,7 @@ function issue-tls-cert () {
     ln -s "${DOMAIN}_ecc" "/root/.acme.sh/${DOMAIN}"
 
     # Create the cert done file
-    touch "$done_file"
+    touch "$acme_cert_done_file"
 }
 
 function main () {
