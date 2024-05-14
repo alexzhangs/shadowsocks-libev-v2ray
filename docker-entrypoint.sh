@@ -75,6 +75,9 @@ function usage () {
         | awk '{gsub(/^[^ ]+.*/, "\033[1m&\033[0m"); print}'
 }
 
+#? Usage:
+#?   issue-tls-cert [--renew-hook "COMMAND"]
+#?
 function issue-tls-cert () {
     # Check if the required environment variables are set
     if [[ -z $DOMAIN ]]; then
@@ -99,7 +102,7 @@ function issue-tls-cert () {
     fi
 
     declare -a acme_common_opts=(--force-color --domain "$DOMAIN")
-    declare -a acme_issue_opts=("${acme_common_opts[@]}" --renew-hook reboot --dns)
+    declare -a acme_issue_opts=("${acme_common_opts[@]}" "$@" --dns)
 
     # Setup DNS hook if DNS is set
     if [[ -n $DNS ]]; then
@@ -151,7 +154,7 @@ function main () {
 
     if [[ $V2RAY -eq 1 ]]; then
         # Issue a TLS certificate
-        issue-tls-cert
+        issue-tls-cert --renew-hook reboot
     fi
 
     exec "$@"
