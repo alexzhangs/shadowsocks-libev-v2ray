@@ -32,12 +32,12 @@
 #?     The domain name for the V2Ray service.
 #?     Please replace `v2ray.ss.yourdomain.com` with your actual domain name.
 #?     And make sure the domain name matches the value used for `--plugin-opts` option.
-#?   
+#?
 #?   - DNS=<dns_hook>
 #?
 #?     Optional, used if env `V2RAY` is set, default is unset.
 #?     Specify the <dns_hook> for your domain to automate domain owner verification.
-#?     The <dns_hook> won't be verified until the domain owner verification is triggered.
+#?     The Shell DNS library `acme.sh` is leveraged to achieve this.
 #?     For the list of supported <dns_hook>, please refer to:
 #?     * https://github.com/acmesh-official/acme.sh/wiki/dnsapi
 #?
@@ -49,22 +49,21 @@
 #?     Specify the environment variables required by the <dns_hook>, usually for the username and token.
 #?     The <name> and <value> are separated by `=`, and multiple pairs are separated by `,`.
 #?     The <name> and <value> are case-sensitive.
-#?     The <name> and <value> won't be verified until the domain owner verification is triggered.
 #?     For the required <name> and <value>, please refer to:
 #?     * https://github.com/acmesh-official/acme.sh/wiki/dnsapi
 #?
 #? File:
 #?   The following files are created by this script:
 #?
-#?   - ~/.acme-account-done
+#?   - ~/.acme-account-done-{DOMAIN}
 #?
 #?     This file is created after the account registration with acme.sh.
-#?     The account registration is skipped if this file exists.
+#?     The account registration will be skipped if this file exists.
 #?
-#?   - ~/.acme-cert-done
+#?   - ~/.acme-cert-done-{DOMAIN}
 #?
 #?     This file is created after the certificate is issued for the domain with acme.sh.
-#?     The certificate issuance is skipped if this file exists.
+#?     The certificate issuance will be skipped if this file exists.
 #?
 
 # exit on any error
@@ -75,21 +74,21 @@ function usage () {
         | awk '{gsub(/^[^ ]+.*/, "\033[1m&\033[0m"); print}'
 }
 
-#? Usage:
-#?   issue-tls-cert [--renew-hook "COMMAND"]
-#?
 function issue-tls-cert () {
-    # Check if the required environment variables are set
-    if [[ -z $DOMAIN ]]; then
-        echo "FATAL: environment variable DOMAIN is not set." >&2
-        exit 255
-    fi
+    #? Description:
+    #?   Issue a TLS certificate with acme.sh.
+    #?
+    #? Usage:
+    #?   issue-tls-cert DOMAIN DNS DNS_ENV [--renew-hook "COMMAND"]
+    #?
 
-    declare acme_account_done_file=~/.acme-account-done
-    declare acme_cert_done_file=~/.acme-cert-done
+    declare domain=${1:?} dns=$2 dns_env=$3 renew_opts=("${@:4}")
+
+    declare acme_account_done_file=~/.acme-account-done-${domain}
+    declare acme_cert_done_file=~/.acme-cert-done-${domain}
 
     if [[ -f $acme_cert_done_file ]]; then
-        echo "INFO: TLS certificate has been issued for the domain $DOMAIN."
+        echo "INFO: TLS certificate has been issued for the domain $domain."
         return
     fi
 
@@ -97,32 +96,29 @@ function issue-tls-cert () {
 
     # Register an account with acme.sh if not done
     if [[ ! -f $acme_account_done_file ]]; then
-        acme.sh --register-account -m "acme@$DOMAIN"
+        acme.sh --register-account -m "acme@$domain"
         touch "$acme_account_done_file"
     fi
 
-    declare -a acme_common_opts=(--force-color --domain "$DOMAIN")
-    declare -a acme_issue_opts=("${acme_common_opts[@]}" "$@" --dns)
+    declare -a acme_common_opts=(--force-color --domain "$domain")
+    declare -a acme_issue_opts=("${acme_common_opts[@]}" "${renew_opts[@]}" --dns)
 
-    # Setup DNS hook if DNS is set
-    if [[ -n $DNS ]]; then
-        # Check if the required environment variables are set
-        if [[ -z $DNS_ENV ]]; then
-            echo "WARNING: environment variable DNS_ENV is not set." >&2
+    # Setup DNS hook if DNS_ENV is set
+    if [[ -n $dns ]]; then
+        # Check if the dns_env is set
+        if [[ -z $dns_env ]]; then
+            echo "WARNING: dns_env is not set." >&2
         fi
 
-        declare -a DNS_ENVS
+        declare -a dns_envs
         # Read the DNS_ENV into an array
-        IFS=',' read -r -a DNS_ENVS <<< "$DNS_ENV"
+        IFS=',' read -r -a dns_envs <<< "$dns_env"
 
-        declare expr
-        # Export the DNS_ENVS
-        for expr in "${DNS_ENVS[@]}"; do
-            export "${expr:?}"
-        done
+        # Export the dns_envs
+        export "${dns_envs[@]}"
 
         # Issue a certificate for the domain with acme.sh, using DNS hook
-        acme.sh --issue "${acme_issue_opts[@]}" "$DNS"
+        acme.sh --issue "${acme_issue_opts[@]}" "$dns"
     else
         # Issue a certificate for the domain with acme.sh, using manual mode, ignoring the non-zero exit code
         acme.sh --issue "${acme_issue_opts[@]}" --yes-I-know-dns-manual-mode-enough-go-ahead-please || :
@@ -139,7 +135,7 @@ function issue-tls-cert () {
     fi
 
     # Create a symbolic link for the certificate directory, v2ray-plugin seaches only the path without the _ecc suffix
-    ln -s "${DOMAIN}_ecc" "/root/.acme.sh/${DOMAIN}"
+    ln -s "${domain}_ecc" "/root/.acme.sh/${domain}"
 
     # Create the cert done file
     touch "$acme_cert_done_file"
@@ -154,7 +150,8 @@ function main () {
 
     if [[ $V2RAY -eq 1 ]]; then
         # Issue a TLS certificate
-        issue-tls-cert --renew-hook reboot
+        # shellcheck disable=SC2153
+        issue-tls-cert "$DOMAIN" "$DNS" "$DNS_ENV" --renew-hook reboot
     fi
 
     exec "$@"
