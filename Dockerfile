@@ -63,38 +63,30 @@
 # For more information, please refer to the project repository:
 #   https://github.com/alexzhangs/shadowsocks-libev-v2ray
 #
-FROM shadowsocks/shadowsocks-libev:edge
 
-# Set work directory
-WORKDIR /shadowsocks-libev-v2ray
+# To enable proxy at build time, use:
+# docker build --build-arg https_proxy=http://host.docker.internal:$PROXY_HTTP_PORT_ON_HOST ...
+ARG http_proxy https_proxy all_proxy
 
-# Copy the current directory contents at local into the container
-COPY . .
+### First stage: build environment
+FROM alpine as builder
 
-RUN chmod +x docker-entrypoint.sh
+# Instal file, git, curl
+RUN apk add file git curl
 
-# Instal file, git, curl, and openssl
-RUN apk add file git curl openssl
+# v2ray-plugin requires Go 1.16
+ENV GO_VERSION=1.16.10
 
-# Install acme.sh
-RUN curl -sL https://get.acme.sh | sh
-
-# Set the PATH for acme.sh
-ENV PATH=$PATH:/root/.acme.sh
-
-# Verify that acme.sh is installed
-RUN acme.sh --version
-
-# Install Go 1.16 (v2ray-plugin requires Go 1.16)
+# Install Go
 RUN <<EOF
     set -ex
     ARCH=$(uname -m)
     case ${ARCH} in
         x86_64)
-            GO_BINARY_URL="https://dl.google.com/go/go1.16.10.linux-amd64.tar.gz"
+            GO_BINARY_URL="https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz"
             ;;
         aarch64)
-            GO_BINARY_URL="https://dl.google.com/go/go1.16.10.linux-arm64.tar.gz"
+            GO_BINARY_URL="https://dl.google.com/go/go${GO_VERSION}.linux-arm64.tar.gz"
             ;;
         *)
             echo "${ARCH}: Unsupported architecture"
@@ -102,7 +94,7 @@ RUN <<EOF
             ;;
     esac
     curl -LO ${GO_BINARY_URL}
-    tar -C /usr/local -xzf go1.16.10.linux-*.tar.gz
+    tar -C /usr/local -xzf go*.tar.gz
 
     # Workaround to fix error: go: not found
     # Use `file $(which go)` to debug the missing library
@@ -112,7 +104,7 @@ RUN <<EOF
             ln -s /lib/ld-musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
             ;;
         aarch64)
-            ln -s /lib/ld-musl-aarch64.so.1 /lib/ld-linux-aarch64.so.1
+            ln -s ld-musl-aarch64.so.1 /lib/ld-linux-aarch64.so.1
             ;;
     esac
 EOF
@@ -133,8 +125,64 @@ EOF
 # Verify that v2ray-plugin is installed
 RUN v2ray-plugin -version
 
-# Install Bash
-RUN apk add bash
+
+### Second stage: final image
+FROM shadowsocks/shadowsocks-libev:edge
+
+# Copy the v2ray-plugin binary from the builder stage
+COPY --from=builder /usr/bin/v2ray-plugin /usr/bin/v2ray-plugin
+
+# Link the missing library
+RUN <<EOF
+    # Workaround to fix error: v2ray-plugin: not found
+    # Use `file $(which v2ray-plugin)` to debug the missing library
+    set -ex
+    ARCH=$(uname -m)
+    case ${ARCH} in
+        x86_64)
+            mkdir /lib64
+            ln -s /lib/ld-musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
+            ;;
+        aarch64)
+            ln -s ld-musl-aarch64.so.1 /lib/ld-linux-aarch64.so.1
+            ;;
+    esac
+EOF
+
+# Verify that v2ray-plugin is installed
+RUN v2ray-plugin -version
+
+# Instal file, curl, openssl, bash, python3, py3-pip
+RUN apk update && \
+    apk add file \
+        # used by acme.sh
+        curl openssl \
+        # used by docker-entrypoint.sh
+        bash \
+        # used by dns-lexicon and its dependencies
+        python3 py3-pip gcc linux-headers libc-dev python3-dev libffi-dev && \
+    if [[ ! -e /usr/bin/python ]]; then ln -s python3 /usr/bin/python ; fi && \
+    if [[ ! -e /usr/bin/pip ]]; then ln -s pip3 /usr/bin/pip ; fi
+
+# Install dns-lexicon
+RUN pip install dns-lexicon
+
+# Install acme.sh
+RUN curl -sL https://get.acme.sh | sh
+
+# Set the PATH for acme.sh
+ENV PATH=$PATH:/root/.acme.sh
+
+# Verify that acme.sh is installed
+RUN acme.sh --version
+
+# Set work directory
+WORKDIR /shadowsocks-libev-v2ray
+
+# Copy the current directory contents at local into the container
+COPY . .
+
+RUN chmod +x docker-entrypoint.sh
 
 # Use the entrypoint script from this repository over the one from shadowsocks/shadowsocks-libev:edge
 ENTRYPOINT [ "./docker-entrypoint.sh" ]
