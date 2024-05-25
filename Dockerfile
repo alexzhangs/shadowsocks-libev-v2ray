@@ -72,7 +72,7 @@ ARG http_proxy https_proxy all_proxy
 FROM alpine as builder
 
 # Instal file, git, curl
-RUN apk add file git curl
+RUN apk --no-cache add file git curl
 
 # v2ray-plugin requires Go 1.16
 ENV GO_VERSION=1.16.10
@@ -153,8 +153,7 @@ EOF
 RUN v2ray-plugin -version
 
 # Instal file, curl, openssl, bash, python3, py3-pip
-RUN apk update && \
-    apk add file \
+RUN apk --no-cache add file \
         # used by acme.sh
         curl openssl \
         # used by docker-entrypoint.sh
