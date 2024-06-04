@@ -19,7 +19,7 @@
 #
 #   ### Start a shadowsocks port service without v2ray-plugin: ###
 #
-#   SS_PORT=8388 SS_PASSWORD=password ENCRYPT=aes-256-cfb
+#   SS_PORT=8388 SS_PASSWORD=password ENCRYPT=aes-256-gcm
 #
 #   docker run --restart=always -d -p $SS_PORT:$SS_PORT \
 #     --name ss-server alexzhangs/shadowsocks-libev-v2ray \
@@ -28,7 +28,7 @@
 #
 #   ### Start a shadowsocks port service with v2ray-plugin enabled (manual verification): ###
 #
-#   SS_PORT=8388 SS_PASSWORD=password ENCRYPT=aes-256-cfb DOMAIN=v2ray.ss.yourdomain.com
+#   SS_PORT=8388 SS_PASSWORD=password ENCRYPT=aes-256-gcm DOMAIN=v2ray.ss.example.com
 #
 #   docker run -e V2RAY=1 -e DOMAIN=$DOMAIN \
 #     --restart=always -d -p $SS_PORT:$SS_PORT \
@@ -39,7 +39,7 @@
 #
 #   ### Start a shadowsocks manager service without v2ray-plugin, no live port: ###
 #
-#   MGR_PORT=6001 SS_PORTS=8381-8385 ENCRYPT=aes-256-cfb
+#   MGR_PORT=6001 SS_PORTS=8381-8385 ENCRYPT=aes-256-gcm
 #
 #   docker run --restart=always -d -p $MGR_PORT:$MGR_PORT/UDP -p $SS_PORTS:$SS_PORTS \
 #     --name ss-manager alexzhangs/shadowsocks-libev-v2ray \
@@ -49,7 +49,7 @@
 #
 #   ### Start a shadowsocks manager service with v2ray-plugin enabled (automated verfication with name.com), no live port: ###
 #
-#   MGR_PORT=6001 SS_PORTS=8381-8385 ENCRYPT=aes-256-cfb DOMAIN=v2ray.ss.yourdomain.com
+#   MGR_PORT=6001 SS_PORTS=8381-8385 ENCRYPT=aes-256-gcm DOMAIN=v2ray.ss.example.com
 #   DNS=dns_namecom DNS_ENV=Namecom_Username=your_username,Namecom_Token=your_password
 #
 #   docker run -e V2RAY=1 -e DOMAIN=$DOMAIN \
@@ -186,4 +186,4 @@ RUN chmod +x docker-entrypoint.sh
 # Use the entrypoint script from this repository over the one from shadowsocks/shadowsocks-libev:edge
 ENTRYPOINT [ "./docker-entrypoint.sh" ]
 
-CMD [ "ss-server", "-p", "8388", "-k", "password", "-m", "aes-256-cfb" ]
+CMD [ "ss-server", "-p", "8388", "-k", "password", "-m", "aes-256-gcm" ]

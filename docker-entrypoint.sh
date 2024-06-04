@@ -26,11 +26,11 @@
 #?       * Register an account with acme.sh
 #?       * Issue a certificate for the domain with acme.sh
 #?
-#?   - DOMAIN=v2ray.ss.yourdomain.com
+#?   - DOMAIN=v2ray.ss.example.com
 #?
 #?     Required if env `V2RAY` is set, default is unset.
 #?     The domain name for the V2Ray service.
-#?     Please replace `v2ray.ss.yourdomain.com` with your actual domain name.
+#?     Please replace `v2ray.ss.example.com` with your actual domain name.
 #?     And make sure the domain name matches the value used for `--plugin-opts` option.
 #?
 #?   - DNS=<dns_hook>

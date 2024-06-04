@@ -28,7 +28,7 @@
 #?   [-e ENCRYPT]
 #?
 #?   Specify the encryption method for shadowsocks.
-#?   Default is aes-256-cfb.
+#?   Default is aes-256-gcm.
 #?
 #?   -d DOMAIN
 #?
@@ -76,7 +76,7 @@ function check-vars () {
 
 function main () {
     declare proxy_flag=0 \
-            mgt_port=6001 ss_ports=8381-8385 encrypt=aes-256-cfb domain dns dns_env \
+            mgt_port=6001 ss_ports=8381-8385 encrypt=aes-256-gcm domain dns dns_env \
             OPTIND OPTARG opt
 
     while getopts Pm:p:e:d:N:E:h opt; do

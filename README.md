@@ -8,7 +8,7 @@
 [![Docker Image Version](https://img.shields.io/docker/v/alexzhangs/shadowsocks-libev-v2ray?label=docker%20image)](https://hub.docker.com/r/alexzhangs/shadowsocks-libev-v2ray)
 
 # shadowsocks-libev-v2ray
-A v2ray-plugin ready shadowsocks-libev Docker image, using acme.sh to automate certificate provision and renew
+A v2ray-plugin ready shadowsocks-libev Docker image, using acme.sh to automate certificate provision and renewal.
 
 ## Dependencies
 - [shadowsocks-libev](https://github.com/shadowsocks/shadowsocks-libev)
@@ -17,13 +17,13 @@ A v2ray-plugin ready shadowsocks-libev Docker image, using acme.sh to automate c
 
 ## Usage
 
-Start a shadowsocks manager service with v2ray-plugin enabled (automated verfication with name.com), no live port:
+Start a shadowsocks manager (ss-manager) service with v2ray-plugin enabled (automated verification with name.com), no live port:
 
 
 ```sh
-MGR_PORT=6001 SS_PORTS=8381-8385 ENCRYPT=aes-256-cfb DOMAIN=v2ray.ss.yourdomain.com
+MGR_PORT=6001 SS_PORTS=8381-8385 ENCRYPT=aes-256-gcm DOMAIN=v2ray.ss.example.com
 
-DNS=dns_namecom DNS_ENV=Namecom_Username=your_username,Namecom_Token=your_password
+DNS=dns_namecom DNS_ENV=Namecom_Username=your_username,Namecom_Token=your_token
 
 docker run -e V2RAY=1 -e DOMAIN=$DOMAIN \
   -e DNS=$DNS -e DNS_ENV=$DNS_ENV \
