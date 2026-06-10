@@ -36,6 +36,33 @@ docker run -e V2RAY=1 -e DOMAIN=$DOMAIN \
 
 More usage examples can be found in the [Dockerfile](Dockerfile) and the [docker-entrypoint.sh](docker-entrypoint.sh).
 
+## Security: the manager port is unauthenticated
+
+The `ss-manager` multi-user API (`MGR_PORT`, e.g. `6001/udp`) has **no
+authentication** — anyone who can reach it can create and remove ports and
+users. The usage example above publishes it with `-p $MGR_PORT:$MGR_PORT/UDP`,
+which binds it on **all host interfaces, including the public one**.
+
+Do not expose it:
+
+- **Preferred:** publish the manager port on the host's **private IP only** and
+  restrict it to the manager host with a security group. With
+  `docker-build-and-run.sh`, set `MGT_BIND_IP` to the private IP:
+
+  ```sh
+  MGT_BIND_IP=10.0.0.230 ./docker-build-and-run.sh -m 6001 -p 8381-8385 -d "$DOMAIN" ...
+  # => docker ... -p 10.0.0.230:6001:6001/UDP ...
+  ```
+
+  Or in a raw `docker run`, scope the publish: `-p <PRIVATE_IP>:$MGR_PORT:$MGR_PORT/udp`.
+
+- For a co-located manager, do not publish the manager port at all (drop the
+  `-p $MGR_PORT...` mapping).
+
+Publishing the manager port on `0.0.0.0` / all interfaces is **unsupported**.
+The shadowsocks service ports (`SS_PORTS`) are different — those are meant to be
+reachable by clients.
+
 ## Certificates Renewal
 
 acme.sh always sets up a daily cron job to check and renew the certificates automatically.
