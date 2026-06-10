@@ -69,7 +69,9 @@
 ARG http_proxy https_proxy all_proxy
 
 ### First stage: build environment
-FROM alpine as builder
+# Pinned by digest for reproducible builds (alpine:latest as of 2026-06-11).
+# Bump deliberately (e.g. via Dependabot/Renovate Docker digest updates).
+FROM alpine@sha256:a2d49ea686c2adfe3c992e47dc3b5e7fa6e6b5055609400dc2acaeb241c829f4 as builder
 
 # Instal file, git, curl
 RUN apk --no-cache add file git curl
@@ -84,17 +86,22 @@ RUN <<EOF
     case ${ARCH} in
         x86_64)
             GO_BINARY_URL="https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz"
+            GO_SHA256="414cd18ce1d193769b9e97d2401ad718755ab47816e13b2a1cde203d263b55cf"
             ;;
         aarch64)
             GO_BINARY_URL="https://dl.google.com/go/go${GO_VERSION}.linux-arm64.tar.gz"
+            GO_SHA256="bfe1d4b82626c742b4690a832ca59a21e3d702161556f3c0ed26dffb368927e9"
             ;;
         *)
             echo "${ARCH}: Unsupported architecture"
             exit 1
             ;;
     esac
-    curl -LO ${GO_BINARY_URL}
-    tar -C /usr/local -xzf go*.tar.gz
+    GO_TARBALL=$(basename "${GO_BINARY_URL}")
+    curl -LO "${GO_BINARY_URL}"
+    # Verify the official checksum before trusting the tarball.
+    echo "${GO_SHA256}  ${GO_TARBALL}" | sha256sum -c -
+    tar -C /usr/local -xzf "${GO_TARBALL}"
 
     # Workaround to fix error: go: not found
     # Use `file $(which go)` to debug the missing library
@@ -118,7 +125,9 @@ RUN go version && go env
 # Install v2ray-plugin
 RUN <<EOF
     set -ex
-    git clone --depth 1 https://github.com/shadowsocks/v2ray-plugin
+    # Pinned to a release tag (commit ddd7ab46b4aeee0ca8b272efed9d7da3e3a6e52c)
+    # instead of the default-branch HEAD.
+    git clone --depth 1 --branch v1.3.2 https://github.com/shadowsocks/v2ray-plugin
     (cd v2ray-plugin && go build && /bin/cp -a v2ray-plugin /usr/bin/v2ray-plugin)
 EOF
 
@@ -127,7 +136,9 @@ RUN v2ray-plugin -version
 
 
 ### Second stage: final image
-FROM shadowsocks/shadowsocks-libev:edge
+# Pinned by digest (shadowsocks/shadowsocks-libev:edge as of 2026-06-11).
+# Bump deliberately to pick up upstream edge updates.
+FROM shadowsocks/shadowsocks-libev@sha256:84166166fcd7feb8dca8a268cd32cd954ca4c3d086b9f748fac8edfea5a0dcac
 
 # Copy the v2ray-plugin binary from the builder stage
 COPY --from=builder /usr/bin/v2ray-plugin /usr/bin/v2ray-plugin
@@ -154,8 +165,8 @@ RUN v2ray-plugin -version
 
 # Instal file, curl, openssl, bash, python3, py3-pip
 RUN apk --no-cache add file \
-        # used by acme.sh
-        curl openssl \
+        # used by acme.sh (git: install acme.sh from a pinned tag)
+        curl openssl git \
         # used by docker-entrypoint.sh
         bash \
         # used by dns-lexicon and its dependencies
@@ -166,8 +177,11 @@ RUN apk --no-cache add file \
 # Install dns-lexicon
 RUN pip install dns-lexicon
 
-# Install acme.sh
-RUN curl -sL https://get.acme.sh | sh
+# Install acme.sh, pinned to a release tag instead of `curl | sh` of the
+# rolling online installer (get.acme.sh runs --install-online from a branch).
+RUN git clone --depth 1 --branch 3.1.3 https://github.com/acmesh-official/acme.sh.git /tmp/acme.sh \
+    && (cd /tmp/acme.sh && ./acme.sh --install --home /root/.acme.sh) \
+    && rm -rf /tmp/acme.sh
 
 # Set the PATH for acme.sh
 ENV PATH=$PATH:/root/.acme.sh
