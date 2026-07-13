@@ -111,10 +111,20 @@ function main () {
 
     check-vars domain mgt_port ss_ports encrypt
 
+    # SECURITY: the ss-manager multi-user API is UNAUTHENTICATED. Publishing it
+    # on all host interfaces (-p PORT:PORT) exposes port/user control to anyone
+    # who can reach the host. Set MGT_BIND_IP to the host's private IP (and
+    # restrict the port to the manager host with a security group) so the
+    # manager port is only reachable over the private interface. Unset keeps
+    # the legacy all-interfaces behaviour for backward compatibility.
+    declare mgt_bind_ip=${MGT_BIND_IP:-}
+    declare mgt_publish="$mgt_port:$mgt_port/UDP"
+    [[ -n $mgt_bind_ip ]] && mgt_publish="$mgt_bind_ip:$mgt_publish"
+
     declare build_opts=() \
             run_opts=(--restart=always) \
             run_env_opts=(-e V2RAY=1 -e DOMAIN="$domain" -e DNS="$dns" -e DNS_ENV="$dns_env") \
-            run_port_opts=(-p "$mgt_port:$mgt_port/UDP" -p "$ss_ports:$ss_ports" -p "$ss_ports:$ss_ports/UDP") \
+            run_port_opts=(-p "$mgt_publish" -p "$ss_ports:$ss_ports" -p "$ss_ports:$ss_ports/UDP") \
             run_cmd_opts=( ss-manager
                 --manager-address "0.0.0.0:$mgt_port"
                 --executable /usr/local/bin/ss-server -m "$encrypt" -s 0.0.0.0 -u
